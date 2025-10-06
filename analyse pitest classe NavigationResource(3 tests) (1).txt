@@ -1,0 +1,70 @@
+
+ Rapport (captures fournies) pour 1 classe NavigationResource :
+
+Line coverage : 14/134 (10%)
+
+Mutation coverage : 5/49 (10%)
+
+Test strength : 5/5 (100%)
+
+Interprétation : la classe était très peu couverte par les tests existants ; seuls 5 mutants sur 49 étaient tués.
+
+3) Score de mutation — avec les nouveaux tests & mutants détectés
+
+Rapport (captures fournies) pour la même classe :
+
+Line coverage : 50/134 (37%)
+
+Mutation coverage : 21/49 (43%)
+
+Test strength : 21/22 (95%)
+
+Gain
+
++27 pts de couverture ligne (10% → 37%).
+
++33 pts de couverture mutation (10% → 43%).
+
++16 mutants tués supplémentaires (5 → 21).
+
+Les 3 tests ajoutés (tous @Tag("pit-new")) et pourquoi ils tuent des mutants
+
+doGet_guardChecks() :
+Vérifie que doGet(...) rejette des combinaisons invalides et lève IllegalArgumentException :
+
+geometries != "polyline6"
+
+steps=false, roundabout_exits=false, voice_instructions=false, banner_instructions=false
+Mutants tués : NegateConditionals, ConditionalsBoundary, ReplaceConstant
+Pourquoi : toute mutation qui bascule/altère ces gardes supprime l’exception attendue → le test échoue → mutant tué.
+
+getBearing_variousCases()
+Couvre le parsing de getBearing(String) :
+
+chaîne vide → liste vide,
+
+segments vides (;;) → NaN aux bonnes positions,
+
+cas valides ("100,1;;200,0;") avec tailles/valeurs exactes,
+
+erreurs de format : pas de virgule ("10"), non numérique ("abc,5").
+Mutants tués : NegateConditionals, Math/ReplaceConstant, RemoveCall (ignorance d’un contrôle)
+Pourquoi : assertions strictes (taille exacte, NaN aux positions attendues, exceptions précises). Toute dérive du parseur est détectée.
+
+doPost_requiresTypeMapbox()
+Vérifie que doPost(...) lève IllegalArgumentException si le hint type=mapbox manque, et contrôle le message.
+Mutants tués : NegateConditionals, ReplaceConstant
+Pourquoi : si la condition ou la constante 'type=mapbox' est mutée, l’exception/le message ne concordent plus → test casse → mutant tué.
+
+Les nouveaux tests détectent-ils de nouveaux mutants ?
+
+Oui. On passe de 5 mutants tués (baseline) à 21 mutants tués après ajout : +16 mutants éliminés.
+Le pourcentage de test strength passe à 21/22 (95%), ce qui indique un mutant survivant.
+
+Résumé
+
+Avant : 10% lignes / 10% mutants tués (5/49).
+
+Après : 37% lignes / 43% mutants tués (21/49) → +16 mutants éliminés grâce à des tests ciblant les gardes et le parsing.
+
+Reste 1 mutant : ajouter un test flux nominal et un test d’erreur bearings devrait raisonnablement l’exposer.
