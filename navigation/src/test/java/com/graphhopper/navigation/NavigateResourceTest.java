@@ -10,13 +10,13 @@ import com.graphhopper.util.shapes.GHPoint;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.Collections;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class NavigateResourceTest {
 
@@ -183,6 +183,25 @@ public void doPost_requiresTypeMapbox() {
     assertTrue(ex.getMessage().contains("type=mapbox"), "Le message doit mentionner 'type=mapbox'");
 }
 
+
+    /**
+     * Paramètres Mapbox interdits <p>
+     * BUT: Vérifier que l'existence de paramètres Mapbox lance une exception. <p>
+     * DONNÉES: Le nom des 10 paramètres Mapbox interdits. <p>
+     * ORACLE: <p>
+     *   - `doPost()` doit lancer l'expcetion `IllegalArgumentException`. <p>
+     *   - Le message d'erreur doit inclure le nom du paramètre. <p>
+     * COUVERTURE Couvre les gardes au début de `doPost`.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"geometries", "steps", "roundabout_exits", "voice_instructions", "banner_instructions", "elevation", "overview", "language", "points_encoded", "points_encoded_multiplier"})
+    public void doPost_mapboxParameters(String field) {
+        NavigateResource res = new NavigateResource(null, new TranslationMap(), new GraphHopperConfig());
+        GHRequest req = new GHRequest();
+        req.putHint(field, field);
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> res.doPost(req, null));
+        assertTrue(ex.getMessage().contains(field), "Le message doit mentionner '" + field + "'");
+    }
 }
 
 
