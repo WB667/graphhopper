@@ -308,9 +308,11 @@
                 <configuration>
                     <targetClasses>
                         <param>com.graphhopper.navigation.NavigateResource*</param>
+                        <param>com.graphhopper.util.PointList*</param>
                     </targetClasses>
                     <targetTests>
                         <param>com.graphhopper.navigation.NavigateResourceTest*</param>
+                        <param>com.graphhopper.util.PointList*</param>
                     </targetTests>
                 </configuration>
             </plugin>
