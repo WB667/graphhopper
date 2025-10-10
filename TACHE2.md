@@ -1,5 +1,5 @@
 # Tâche 2
-William Bisson (20237297) et Jérémie Dupuis (20276905) – IFT3913 A25
+William Bisson (20237296) et Jérémie Dupuis (20276905) – IFT3913 A25
 
 Nous avons choisi les classes [`navigation.NavigateResource`](https://github.com/WB667/graphhopper/blob/master/navigation/src/main/java/com/graphhopper/navigation/NavigateResource.java) et [`util.PointList`](https://github.com/WB667/graphhopper/blob/master/web-api/src/main/java/com/graphhopper/util/PointList.java) (dans le dossier `/web-api`).
 
