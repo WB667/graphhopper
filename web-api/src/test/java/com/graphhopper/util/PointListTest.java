@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class PointListTest {
     /**
-     * Utilitaire pour générer une liste de points (2D) aléatoires.
+     * Utilitaire pour générer une liste de points (2D) aléatoires à l'aide de `JavaFaker`.
      * @param n nombre de points à générer
      * @return une `PointList` 2D de taille n
      */
@@ -26,7 +26,11 @@ public class PointListTest {
      * BUT: Vérifier qu'inverser une liste 2 fois de suite revient au point de départ. <p>
      * DONNÉES: Une liste de 5 points 2D aux coordonnées aléatoires. <p>
      * ORACLE: La sortie devrait être égale à l'entrée après transformation. <p>
-     * COUVERTURE: Couvre l'essentiel des méthodes `.clone` et `.reverse()`. <p>
+     * COUVERTURE: Couvre l'essentiel des méthodes `clone()` et `reverse()`. <p>
+     * MUTANTS: <p>
+     *   - On détecte les mutants triviaux qui font échouer la fonction. <p>
+     *   - Comme le test de propriété vérifie toutes les valeurs de la liste, on détecte aussi des
+     *     mutants en lien avec les bornes et la longueur de la liste.
      */
     @Test
     public void reverseTest() {
@@ -39,10 +43,14 @@ public class PointListTest {
 
     /**
      * Copie par "valeur" <p>
-     * BUT: Vérifier que `.copy` produit une instance déconnectée de l'originale. <p>
+     * BUT: Vérifier que `copy` produit une instance déconnectée de l'originale. <p>
      * DONNÉES: Une liste de 3 points 2D aux coordonnées aléatoires. <p>
      * ORACLE: Les valeurs modifiées après la copie ne devraient pas être égales. <p>
-     * COUVERTURE: Couvre l'essentiel de la méthode `.copy`. <p>
+     * COUVERTURE: Couvre l'essentiel de la méthode `copy()`. <p>
+     * MUTANTS: <p>
+     *   - On détecte les mutants triviaux qui font échouer la fonction. <p>
+     *   - Comme on vérifie toutes les valeurs de la liste, et pas seulement la valeur modifiée, on
+     *     détecte aussi des mutants en lien avec les bornes et la longueur de la liste.
      */
     @Test
     public void copyTest() {
@@ -57,12 +65,13 @@ public class PointListTest {
 
     /**
      * Copie par "référence" <p>
-     * BUT: Vérifier que `.shallowCopy` produit une instance synchronisée avec l'originale. <p>
+     * BUT: Vérifier que `shallowCopy()` produit une instance synchronisée avec l'originale. <p>
      * DONNÉES: Une liste de 3 points 2D aux coordonnées aléatoires. <p>
      * ORACLE: <p>
      *   - Les valeurs modifiées après la copie devraient rester synchronisées. <p>
      *   - Modifier la copie devrait lancer une exception. <p>
-     * COUVERTURE: Couvre l'essentiel de la méthode `.shallowCopy`. <p>
+     * COUVERTURE: Couvre l'essentiel de la méthode `shallowCopy()`. <p>
+     * MUTANTS: On détecte les mutants triviaux qui font échouer la fonction.
      */
     @Test void shallowCopyTest() {
         PointList list1 = randomPointList(3);
