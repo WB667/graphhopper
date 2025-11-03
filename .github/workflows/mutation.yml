@@ -14,12 +14,12 @@ jobs:
 
       - name: Run PITEST
         run: |
-          mvn -pl graphhopper-core -am org.pitest:pitest-maven:mutationCoverage
-          DETECTED=$(grep -oE 'Detected.*?([0-9]+)' target/pit-reports/*/index.html | head -n1 | grep -oE '[0-9]+' || echo 0)
-          TOTAL=$(grep -oE 'Generated.*?([0-9]+)' target/pit-reports/*/index.html | head -n1 | grep -oE '[0-9]+' || echo 1)
+          mvn -pl core -am org.pitest:pitest-maven:mutationCoverage
+          DETECTED=$(grep -Eo 'Detected.*?([0-9]+)' target/pit-reports/**/index.html | head -n1 | grep -oE '[0-9]+' || echo 0)
+          TOTAL=$(grep -Eo 'Generated.*?([0-9]+)' target/pit-reports/**/index.html | head -n1 | grep -oE '[0-9]+' || echo 1)
           SCORE=$(awk -v d="$DETECTED" -v t="$TOTAL" 'BEGIN { printf "%.2f", (d*100.0)/t }')
           echo "$SCORE" > score.txt
-     
+
       - name: Download previous score
         uses: dawidd6/action-download-artifact@v6
         with:
@@ -34,7 +34,8 @@ jobs:
             CURR=$(cat score.txt)
             echo "prev=$PREV curr=$CURR"
             if [ "${CURR:-0}" -lt "${PREV:-0}" ]; then
-              echo "Mutation score decreased"; exit 1; fi
+              echo "Mutation score decreased"; exit 1;
+            fi
           fi
 
       - name: Save current score
