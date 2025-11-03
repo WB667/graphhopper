@@ -14,10 +14,12 @@ jobs:
 
       - name: Run PITEST
         run: |
-          mvn -B -DskipITs test org.pitest:pitest-maven:mutationCoverage
-          SCORE=$(grep -oE 'Mutation score[^0-9%]*([0-9]+)' target/pit-reports/*/index.html 2>/dev/null | head -n1 | grep -oE '[0-9]+' || echo 0)
+          mvn -pl graphhopper-core -am org.pitest:pitest-maven:mutationCoverage
+          DETECTED=$(grep -oE 'Detected.*?([0-9]+)' target/pit-reports/*/index.html | head -n1 | grep -oE '[0-9]+' || echo 0)
+          TOTAL=$(grep -oE 'Generated.*?([0-9]+)' target/pit-reports/*/index.html | head -n1 | grep -oE '[0-9]+' || echo 1)
+          SCORE=$(awk -v d="$DETECTED" -v t="$TOTAL" 'BEGIN { printf "%.2f", (d*100.0)/t }')
           echo "$SCORE" > score.txt
-
+     
       - name: Download previous score
         uses: dawidd6/action-download-artifact@v6
         with:
