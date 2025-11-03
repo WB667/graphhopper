@@ -1,0 +1,42 @@
+name: Mutation Testing
+
+on: [push]
+
+jobs:
+  pitest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Run PITEST
+        run: |
+          mvn -B -DskipITs test org.pitest:pitest-maven:mutationCoverage
+          SCORE=$(grep -oE 'Mutation score[^0-9%]*([0-9]+)' target/pit-reports/*/index.html 2>/dev/null | head -n1 | grep -oE '[0-9]+' || echo 0)
+          echo "$SCORE" > score.txt
+
+      - name: Download previous score
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          name: score
+          workflow: ${{ github.workflow }}
+          if_no_artifact_found: ignore
+
+      - name: Fail if score decreased
+        run: |
+          if [ -f score/score.txt ]; then
+            PREV=$(cat score/score.txt)
+            CURR=$(cat score.txt)
+            echo "prev=$PREV curr=$CURR"
+            if [ "${CURR:-0}" -lt "${PREV:-0}" ]; then
+              echo "Mutation score decreased"; exit 1; fi
+          fi
+
+      - name: Save current score
+        uses: actions/upload-artifact@v4
+        with:
+          name: score
+          path: score.txt
