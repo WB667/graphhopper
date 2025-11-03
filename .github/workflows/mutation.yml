@@ -26,18 +26,16 @@ jobs:
       - name: Run PIT (navigation + web-api)
         shell: bash
         run: |
-          set -e
-
-          echo "=== Running PIT on navigation + web-api ==="
-          mvn -B -DskipTests \
+          mvn -q -B \
             -pl navigation,web-api -am \
+            -DskipTests=false \
             org.pitest:pitest-maven:1.20.3:mutationCoverage \
             -DfailWhenNoMutations=false
 
           # -------- localise le dernier index.html d'un module ----------
           get_idx () {
             local mod="$1"
-            # cas 1 : sous-dossier horodaté (classique)
+            # cas 1 : sous-dossier(classique)
             local d1
             d1="$(ls -1dt "$mod/target/pit-reports"/*/ 2>/dev/null | head -1)"
             if [[ -n "$d1" && -f "$d1/index.html" ]]; then
@@ -47,7 +45,7 @@ jobs:
             if [[ -f "$mod/target/pit-reports/index.html" ]]; then
               echo "$mod/target/pit-reports/index.html"; return 0
             fi
-            # cas 3 : index dans un sous-dossier de package (ex: com.graphhopper.navigation)
+            # cas 3 : index dans un sous-dossier (ex: com.graphhopper.navigation)
             local p3
             p3="$(find "$mod/target/pit-reports" -maxdepth 2 -name index.html 2>/dev/null | head -1)"
             if [[ -n "$p3" ]]; then
