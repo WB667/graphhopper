@@ -11,18 +11,18 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Configuration de Java 17
+      
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      # Build préalable : installe les JARs SNAPSHOT dans le cache Maven local
+      # installe les JARs SNAPSHOT dans le cache Maven local
       - name: Pre-build reactor (install SNAPSHOTs)
         run: |
           mvn -q -B -DskipTests -DskipITs install
 
-      # Lancer PIT sur les modules navigation + web-api
+      # Lancer PIT sur navigation + web-api
       - name: Run PIT (navigation + web-api)
         shell: bash
         run: |
@@ -39,18 +39,19 @@ jobs:
           TOTAL=$(grep -Eo "Generated[^0-9]*([0-9]+)" navigation/target/pit-reports/**/index.html | grep -Eo '[0-9]+' || echo 1)
 
           SCORE=$(awk -v d="$DETECTED" -v t="$TOTAL" 'BEGIN{ if(t==0) t=1; printf "%.2f", (d*100.0)/t }')
-          echo "Detected=$DETECTED  Total=$TOTAL  Score=${SCORE}%" 
+          echo "Detected=$DETECTED  Total=$TOTAL  Score=${SCORE}%"
           echo "$SCORE" > score.txt
 
-      # Télécharger l’ancien score pour comparaison
+      # Télécharge l’ancien score pour comparaison
       - name: Download previous score
         uses: dawidd6/action-download-artifact@v6
         with:
           name: score
           workflow: ${{ github.workflow }}
+          allow_forks: true              
           if_no_artifact_found: ignore
 
-      # Comparer avec le score précédent
+      # Compare avec le score précédent
       - name: Fail if score decreased
         shell: bash
         run: |
@@ -59,15 +60,15 @@ jobs:
             CURR=$(cat score.txt)
             echo "Previous=${PREV}%  Current=${CURR}%"
             awk -v p="$PREV" -v c="$CURR" 'BEGIN{ if (c+0 < p+0) exit 1 }' && {
-              echo " Score stable ou amélioré."
+              echo "Score stable ou amélioré."
             } || {
-              echo " Score de mutation en baisse."; exit 1;
+              echo "Score de mutation en baisse."; exit 1;
             }
           else
-            echo " Aucun score précédent (première exécution)."
+            echo "Aucun score précédent (première exécution)."
           fi
 
-      # Sauvegarder le nouveau score
+      # Sauvegarde le nouveau score
       - name: Save current score
         uses: actions/upload-artifact@v4
         with:
