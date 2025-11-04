@@ -20,38 +20,20 @@ jobs:
       - name: Pre-build reactor
         run: mvn -q -B -DskipTests -DskipITs -pl navigation,web-api -am install
 
-      # Étape 2 : Exécution de PIT en MODE CLI (aucun usage de surefire/argLine)
-      - name: Run PIT (CLI) for navigation + web-api
+      # Étape 2 : Exécution de PIT + agrégation MINIMALE (navigation + web-api)
+      - name: Run PIT (navigation + web-api)
         shell: bash
         env:
           MAVEN_OPTS: "-Xmx2G"
         run: |
           set -e
 
-          # 1 Télécharger le CLI de PIT (ne change rien au repo)
-          mvn -q org.apache.maven.plugins:maven-dependency-plugin:3.6.1:get \
-            -Dartifact=org.pitest:pitest-command-line:1.20.3
-
-          PIT_JAR="$HOME/.m2/repository/org/pitest/pitest-command-line/1.20.3/pitest-command-line-1.20.3.jar"
-
-          # 2 Construire le classpath (dépendances + classes des 2 modules)
-          mvn -q -pl navigation,web-api -am \
-            -DincludeScope=test \
-            -Dmdep.outputFile=deps.cp \
-            org.apache.maven.plugins:maven-dependency-plugin:3.6.1:build-classpath
-
-          CLASSPATH="$(cat deps.cp):navigation/target/classes:navigation/target/test-classes:web-api/target/classes:web-api/target/test-classes"
-
-          # 3 Lancer le CLI PIT (bypass total de surefire => plus d'argLine)
-          #    Ajuste les patterns si nécessaire (ici: tout com.graphhopper.*)
-          mkdir -p target/pit-reports
-          java -cp "$PIT_JAR" \
-            org.pitest.mutationtest.commandline.MutationCoverageReport \
-            --classPath "$CLASSPATH" \
-            --reportDir "target/pit-reports" \
-            --threads 2 \
-            --targetClasses "com.graphhopper.*" \
-            --targetTests   "com.graphhopper.*"
+          # Important : on désactive le parsing de l'argLine Surefire par PIT
+          mvn -q -B \
+            -pl navigation,web-api -am \
+            org.pitest:pitest-maven:1.20.3:mutationCoverage \
+            -DparseSurefireArgLine=false \
+            -DfailWhenNoMutations=false
 
           # ---- AGRÉGATION MINIMALE navigation + web-api ----
           p() { [[ -f "$1" ]] || { echo "0 0"; return; }
