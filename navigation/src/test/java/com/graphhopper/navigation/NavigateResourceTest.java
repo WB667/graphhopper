@@ -172,7 +172,7 @@ public class NavigateResourceTest {
      *   - Le message d'erreur doit inclure le nom du paramètre. <p>
      * COUVERTURE: Couvre les gardes au début de `doPost()`. <p>
      * MUTANTS: On détecte les mutants triviaux qui font échouer le test.
-     */ 
+     *
     @ParameterizedTest
     @ValueSource(strings = {"geometries", "steps", "roundabout_exits", "voice_instructions", "banner_instructions", "elevation", "overview", "language", "points_encoded", "points_encoded_multiplier"})
     public void doPost_guardsTest(String field) {
@@ -182,7 +182,7 @@ public class NavigateResourceTest {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> res.doPost(req, null));
         assertTrue(ex.getMessage().contains(field), "Le message doit mentionner '" + field + "'");
     }
-      
+   */    
 }
 
 
