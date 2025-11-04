@@ -26,7 +26,7 @@ jobs:
       - name: Run PIT (navigation + web-api)
         shell: bash
         env:
-            MAVEN_OPTS: -DargLine=
+            MAVEN_OPTS: -DargLine= -DargLine= -Duser.dir=."
         run: |
           mvn -q -B \
             -DskipTests=false \
