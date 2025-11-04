@@ -42,7 +42,7 @@ public class NavigateResourceTest {
      *   - exceptions attendues via `assertThrows` <p>
      * COUVERTURE: branches de `getBearing()` → chaîne vide, segments vides, format invalide, NumberFormatException. <p>
      * MUTANTS: Ce test ne détecte pas de nouveaux mutants.
-     
+     */
     @Test
     public void getBearing_parsingTest() {
         // 1) Chaîne vide → liste vide
@@ -94,7 +94,7 @@ public class NavigateResourceTest {
      *     explicitement couvertes; les autres paramètres à `true` parcourent implicitement les branches `false`. <p>
      *   - Augmente la couverture d'instructions et de branches de `doGet()` sans dépendre d'un GraphHopper initialisé. <p>
      * MUTANTS: On détecte les mutants triviaux qui font échouer le test.
-     
+     */
     @Test
     public void doGet_guardsTest() {
         NavigateResource res = new NavigateResource(null, new TranslationMap(), new GraphHopperConfig());
@@ -129,7 +129,6 @@ public class NavigateResourceTest {
                       "metric", "simplified", "polyline6", "", "en", "driving")
         );
     }
-    */
 
     /**
      * doPost_requiresTypeMapbox <p>
@@ -148,7 +147,7 @@ public class NavigateResourceTest {
      *     tout en parcourant les checks précédents sur leur branche "false". <p>
      *   - Augmente la couverture d'instructions et de branches de `doPost()` sans dépendre d'un graphe. <p>
      * MUTANTS: On détecte le mutant trivial qui fait échouer le test.
-     
+     */
     @Test
     public void doPost_requiresTypeMapbox() {
         // Pas besoin de GraphHopper ici: on échoue avant tout routage
@@ -163,7 +162,7 @@ public class NavigateResourceTest {
         // Message caractéristique du garde final
         assertTrue(ex.getMessage().contains("type=mapbox"), "Le message doit mentionner 'type=mapbox'");
     }
-    */
+    
 
     /**
      * Paramètres Mapbox interdits <p>
@@ -174,7 +173,7 @@ public class NavigateResourceTest {
      *   - Le message d'erreur doit inclure le nom du paramètre. <p>
      * COUVERTURE: Couvre les gardes au début de `doPost()`. <p>
      * MUTANTS: On détecte les mutants triviaux qui font échouer le test.
-     
+     */
     @ParameterizedTest
     @ValueSource(strings = {"geometries", "steps", "roundabout_exits", "voice_instructions", "banner_instructions", "elevation", "overview", "language", "points_encoded", "points_encoded_multiplier"})
     public void doPost_guardsTest(String field) {
@@ -184,7 +183,7 @@ public class NavigateResourceTest {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> res.doPost(req, null));
         assertTrue(ex.getMessage().contains(field), "Le message doit mentionner '" + field + "'");
     }
-     */
+     
 }
 
 
