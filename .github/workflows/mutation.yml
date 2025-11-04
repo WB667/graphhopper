@@ -4,6 +4,9 @@ on: [push]
 jobs:
   pitest:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
 
     steps:
       - uses: actions/checkout@v4
@@ -15,43 +18,54 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      # Étape 1 : build propre sans tests
-      - name: Pre-build reactor
-        run: mvn -q -B -DskipTests -DskipITs install
+      # build préalable (pas de tests) pour avoir les SNAPSHOTs
+      - name: Pre-build reactor (install SNAPSHOTs)
+        run: mvn -q -B -DskipTests -DskipITs -pl navigation,web-api -am install
 
-      # Étape 2 : exécute PIT sur les modules navigation + web-api
+      # === PIT sur navigation + web-api ===
       - name: Run PIT (navigation + web-api)
         shell: bash
-        env:
-          MAVEN_OPTS: -DargLine= -Dsurefire.argLine= -Dfailsafe.argLine=
         run: |
+          set -e
+
+          # Neutralise toutes les variantes d'argLine SANS MAVEN_OPTS
           mvn -q -B \
-            -pl navigation,web-api -am \
             -DskipTests=false \
+            -DargLine=" " -Dsurefire.argLine=" " -Dfailsafe.argLine=" " \
+            -pl navigation,web-api -am \
             org.pitest:pitest-maven:1.20.3:mutationCoverage \
             -DfailWhenNoMutations=false
 
-          # Récupère le rapport de navigation
-          IDX_NAV=$(find navigation/target/pit-reports -name index.html | head -1)
+          # --- récupère l'index du rapport PIT du module navigation
+          IDX_NAV="$(find navigation/target/pit-reports -type f -name index.html -print -quit 2>/dev/null || true)"
           if [[ -z "$IDX_NAV" ]]; then
-            echo "Aucun rapport PIT trouvé pour navigation"
+            echo "Aucun rapport PIT trouvé pour 'navigation'"
             echo "0" > score.txt
             exit 0
           fi
 
-          DET=$(grep -Eo "Detected[^0-9]*([0-9]+)" "$IDX_NAV" | grep -Eo "[0-9]+" | head -1)
-          GEN=$(grep -Eo "Generated[^0-9]*([0-9]+)" "$IDX_NAV" | grep -Eo "[0-9]+" | head -1)
-          SCORE=$(awk -v d="$DET" -v g="$GEN" 'BEGIN{ if(g==0) g=1; printf "%.2f", (d*100.0)/g }')
-          echo "Detected=$DET  Generated=$GEN  Score=${SCORE}%" | tee score.txt
+          # --- extrait Detected / Generated et calcule le score
+          read DET GEN < <(awk '
+            match($0,/Detected[^0-9]*([0-9]+)/,a){d=a[1]}
+            match($0,/Generated[^0-9]*([0-9]+)/,b){g=b[1]}
+            END{ if(d=="") d=0; if(g=="") g=1; print d, g }
+          ' "$IDX_NAV")
 
-      # Étape 3 : compare au score précédent
+          SCORE=$(awk -v d="$DET" -v g="$GEN" 'BEGIN{printf "%.2f",(d*100.0)/g}')
+          echo "Detected=$DET  Generated=$GEN  Score=${SCORE}%"
+          echo "$SCORE" > score.txt
+
+      # charge le score précédent (s'il existe) depuis ce même workflow
       - name: Download previous score
         uses: dawidd6/action-download-artifact@v6
         with:
           name: score
           workflow: .github/workflows/mutation.yml
+          branch: ${{ github.ref_name }}
+          search_artifacts: true
           if_no_artifact_found: ignore
 
+      # échoue si le score baisse
       - name: Fail if score decreased
         shell: bash
         run: |
@@ -59,12 +73,12 @@ jobs:
             PREV=$(cat score/score.txt)
             CURR=$(cat score.txt)
             echo "Previous=${PREV}%  Current=${CURR}%"
-            awk -v p="$PREV" -v c="$CURR" 'BEGIN{ exit (c+0<p+0)?1:0 }' && echo "Score stable ou en hausse." || { echo "Score de mutation en baisse."; exit 1; }
+            awk -v p="$PREV" -v c="$CURR" 'BEGIN{ exit (c+0 < p+0) ? 1 : 0 }' \
+              || { echo "Mutation score decreased"; exit 1; }
           else
-            echo "Aucun score précédent (première exécution)."
+            echo "No previous score (first run)."
           fi
 
-      # Étape 4 : sauvegarde du score actuel
       - name: Save current score
         uses: actions/upload-artifact@v4
         with:
