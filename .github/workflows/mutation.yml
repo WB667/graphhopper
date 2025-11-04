@@ -29,6 +29,7 @@ jobs:
           mvn -q -B \
             -pl navigation,web-api -am \
             -DskipTests=false \
+            -DargLine= \
             org.pitest:pitest-maven:1.20.3:mutationCoverage \
             -DfailWhenNoMutations=false
 
