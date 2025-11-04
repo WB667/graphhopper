@@ -1,4 +1,4 @@
-name: Mutation Testing
+name: Mutation Testing 
 
 on: [push]
 
@@ -20,7 +20,7 @@ jobs:
       - name: Pre-build reactor
         run: mvn -q -B -DskipTests -DskipITs -pl navigation,web-api -am install
 
-      # Étape 2 : Exécution de PIT + agrégation MINIMALE (navigation + web-api)
+      # Étape 2 : Exécution de PIT + agrégation (navigation + web-api)
       - name: Run PIT (navigation + web-api)
         shell: bash
         env:
@@ -32,15 +32,28 @@ jobs:
           : > "{argLine}"
 
           # Lancement PIT via le plugin Maven (on ne touche pas argLine)
+          # IMPORTANT: on force la génération CSV pour un parsing fiable.
           mvn -q -B \
             -pl navigation,web-api -am \
             org.pitest:pitest-maven:1.20.3:mutationCoverage \
-            -DfailWhenNoMutations=false
+            -DfailWhenNoMutations=false \
+            -DoutputFormats=HTML,CSV
 
-          # ---- AGRÉGATION MINIMALE navigation + web-api ----
-          # Parse le format actuel de PIT ("Generated N mutations", "Killed M")
-          p() {
-            [[ -f "$1" ]] || { echo "0 0"; return; }
+          # ---- AGRÉGATION ROBUSTE navigation + web-api ----
+          # 1) On privilégie mutations.csv (fiable).
+          # 2) Fallback HTML si pas de CSV.
+          # Les fonctions retournent: "<killed> <total>"
+
+          count_from_csv() {
+            local csv="$1"
+            [[ -f "$csv" ]] || { echo "0 0"; return; }
+            # colonnes PIT CSV: la 6e est le status (KILLED, SURVIVED, NO_COVERAGE, etc.)
+            awk -F',' 'NR>1 {tot++; if($6=="KILLED") kill++} END{print kill+0, tot+0}' "$csv"
+          }
+
+          count_from_html() {
+            local html="$1"
+            [[ -f "$html" ]] || { echo "0 0"; return; }
             awk '
               match($0,/Generated[[:space:]]+([0-9]+)[[:space:]]+mutations/,g){gen=g[1]}
               match($0,/Killed[[:space:]]+([0-9]+)/,k){det=k[1]}
@@ -49,14 +62,24 @@ jobs:
                 if(gen=="") gen=0;
                 print det, gen
               }
-            ' "$1"
+            ' "$html"
           }
 
-          N=$(find navigation/target/pit-reports -name index.html 2>/dev/null | sort | tail -1)
-          A=$(find web-api/target/pit-reports   -name index.html 2>/dev/null | sort | tail -1)
+          aggregate_module() {
+            local module="$1"
+            local CSV=$(find "$module/target/pit-reports" -name mutations.csv 2>/dev/null | sort | tail -1)
+            local HTML=$(find "$module/target/pit-reports" -name index.html    2>/dev/null | sort | tail -1)
+            local d=0 g=0
+            if [[ -n "$CSV" ]]; then
+              read d g < <(count_from_csv "$CSV")
+            elif [[ -n "$HTML" ]]; then
+              read d g < <(count_from_html "$HTML")
+            fi
+            echo "$d $g"
+          }
 
-          read ND NG < <(p "$N")
-          read AD AG < <(p "$A")
+          read ND NG < <(aggregate_module navigation)
+          read AD AG < <(aggregate_module web-api)
 
           DET=$((ND+AD))
           GEN=$((NG+AG))
