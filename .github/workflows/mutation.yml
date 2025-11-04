@@ -68,7 +68,9 @@ jobs:
         continue-on-error: true
         with:
           name: score
-          workflow: .github/workflows/mutation.yml
+          # IMPORTANT : nom du fichier workflow, pas le chemin complet
+          workflow: mutation.yml
+          # Recherche l'artefact sur la même branche
           branch: ${{ github.ref_name }}
           search_artifacts: true
           if_no_artifact_found: ignore
