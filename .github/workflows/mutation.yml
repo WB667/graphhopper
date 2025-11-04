@@ -25,11 +25,13 @@ jobs:
 
       - name: Run PIT (navigation + web-api)
         shell: bash
+        env:
+            MAVEN_OPTS: -DargLine=
         run: |
           mvn -q -B \
-            -pl navigation,web-api -am \
             -DskipTests=false \
-            -DargLine="" \
+            -DargLine= -Dsurefire.argLine= -Dfailsafe.argLine= \
+            -pl navigation,web-api -am \
             org.pitest:pitest-maven:1.20.3:mutationCoverage \
             -DfailWhenNoMutations=false
 
