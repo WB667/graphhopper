@@ -16,35 +16,51 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      # Build sans tests, juste pour avoir les classes et dépendances
+      # Étape 1 : build sans tests pour disposer des classes compilées
       - name: Pre-build reactor
-        run: |
-          mvn -q -B -DskipTests -DskipITs -pl navigation,web-api -am install
+        run: mvn -q -B -DskipTests -DskipITs -pl navigation,web-api -am install
 
-      # Lancer PIT (laisser le pom piloter l'argLine/jacoco/surefire)
+      # Étape 2 : Exécution de PIT + agrégation MINIMALE (navigation + web-api)
       - name: Run PIT (navigation + web-api)
         shell: bash
+        env:
+          MAVEN_OPTS: "-Xmx2G"
         run: |
           set -e
-          mvn -q -B -pl navigation,web-api -am \
+
+          mvn -q -B \
+            -pl navigation,web-api -am \
             org.pitest:pitest-maven:1.20.3:mutationCoverage \
             -DfailWhenNoMutations=false
 
-          # Récupère le dernier rapport du module "navigation"
-          IDX_NAV="$(ls -1dt navigation/target/pit-reports/*/ 2>/dev/null | head -1)/index.html"
-          if [[ ! -f "$IDX_NAV" ]]; then
-            echo "Aucun rapport PIT trouvé pour 'navigation'"
-            echo "0" > score.txt
+          # ---- AGRÉGATION MINIMALE navigation + web-api ----
+          p() { [[ -f "$1" ]] || { echo "0 0"; return; }
+            awk 'match($0,/Detected[^0-9]*([0-9]+)/,a){d=a[1]}
+                 match($0,/Generated[^0-9]*([0-9]+)/,b){g=b[1]}
+                 END{if(d=="")d=0; if(g=="")g=0; print d, g}' "$1"; }
+
+          N=$(find navigation/target/pit-reports -name index.html 2>/dev/null | sort | tail -1)
+          A=$(find web-api/target/pit-reports   -name index.html 2>/dev/null | sort | tail -1)
+
+          read ND NG < <(p "$N")
+          read AD AG < <(p "$A")
+
+          DET=$((ND+AD))
+          GEN=$((NG+AG))
+
+          # aucun rapport valide (aucun index trouvé)
+          if [[ $DET -eq 0 && $GEN -eq 0 ]]; then
+            echo 0 > score.txt
             exit 0
           fi
 
-          # Extrait Detected / Generated et calcule le score
-          DET=$(grep -Eo "Detected[^0-9]*([0-9]+)"   "$IDX_NAV" | grep -Eo '[0-9]+' | head -1 || echo 0)
-          GEN=$(grep -Eo "Generated[^0-9]*([0-9]+)"  "$IDX_NAV" | grep -Eo '[0-9]+' | head -1 || echo 1)
-          awk -v d="$DET" -v g="$GEN" 'BEGIN{ if(g==0) g=1; printf "%.2f\n",(d*100.0)/g }' > score.txt
-          echo "Detected=$DET  Generated=$GEN  Score=$(cat score.txt)%"
+          [[ $GEN -eq 0 ]] && GEN=1
 
-      # Essaie de récupérer l'ancien score (si indisponible : on n'échoue pas)
+          SCORE=$(awk -v d="$DET" -v g="$GEN" 'BEGIN{printf "%.2f",(d*100.0)/g}')
+          echo "Detected=$DET  Generated=$GEN  Score=${SCORE}%"
+          echo "$SCORE" > score.txt
+
+      # Étape 3 : Télécharge l'ancien score (si existant)
       - name: Download previous score
         uses: dawidd6/action-download-artifact@v6
         continue-on-error: true
@@ -55,7 +71,7 @@ jobs:
           search_artifacts: true
           if_no_artifact_found: ignore
 
-      # Échoue si le score a baissé
+      # Étape 4 : Compare les scores
       - name: Fail if score decreased
         shell: bash
         run: |
@@ -70,7 +86,7 @@ jobs:
             echo "Aucun score précédent (première exécution)."
           fi
 
-      # Sauvegarde le score courant pour les prochains runs
+      # Étape 5 : Sauvegarde du score
       - name: Save current score
         uses: actions/upload-artifact@v4
         with:
