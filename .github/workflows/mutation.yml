@@ -1,6 +1,11 @@
-name: Mutation Testing 
+name: Mutation Testing
 
 on: [push]
+
+# Autorisations nécessaires pour lister les runs et télécharger les artefacts
+permissions:
+  actions: read
+  contents: read
 
 jobs:
   pitest:
@@ -27,21 +32,14 @@ jobs:
           MAVEN_OPTS: "-Xmx2G"
         run: |
           set -e
-
-          # Neutralisation universelle : si un composant tente d'ouvrir "{argLine}", le fichier existe.
           : > "{argLine}"
 
-          # Lancement PIT via le plugin Maven 
-          # sortie CSV pour un parsing fiable
           mvn -q -B \
             -pl navigation,web-api -am \
             org.pitest:pitest-maven:1.20.3:mutationCoverage \
             -DfailWhenNoMutations=false \
             -DoutputFormats=HTML,CSV
 
-          # ---- AGRÉGATION ROBUSTE navigation + web-api ----
-          # 1 CSV prioritaire : total = lignes-1 ; killed = lignes contenant ",KILLED,"
-          # HTML si pas de CSV
           count_from_csv() {
             local csv="$1"
             [[ -f "$csv" ]] || { echo "0 0"; return; }
@@ -58,11 +56,7 @@ jobs:
             awk '
               match($0,/Generated[[:space:]]+([0-9]+)[[:space:]]+mutations/,g){gen=g[1]}
               match($0,/Killed[[:space:]]+([0-9]+)/,k){det=k[1]}
-              END{
-                if(det=="") det=0;
-                if(gen=="") gen=0;
-                print det, gen
-              }
+              END{ if(det=="")det=0; if(gen=="")gen=0; print det,gen }
             ' "$html"
           }
 
@@ -101,11 +95,11 @@ jobs:
         continue-on-error: true
         with:
           name: score
-          # Utiliser le NOM DU WORKFLOW tel qu'affiché dans l'onglet Actions
-          workflow: "Mutation Testing"
+          workflow: mutation.yml       
           branch: ${{ github.ref_name }}
           search_artifacts: true
           if_no_artifact_found: ignore
+          path: score                  
 
       # Étape 4 : Compare les scores
       - name: Fail if score decreased
