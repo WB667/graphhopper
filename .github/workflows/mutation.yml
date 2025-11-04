@@ -21,7 +21,7 @@ jobs:
 
       - name: Pre-build reactor (install SNAPSHOTs)
         run: |
-          mvn -q -B -DskipTests -DskipITs install
+          mvn -q -B -DskipTests -DskipITs -pl navigation,web-api -am install
 
       - name: Run PIT (navigation + web-api)
         shell: bash
