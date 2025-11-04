@@ -28,8 +28,10 @@ jobs:
         run: |
           set -e
 
+          # Fix clé : on neutralise toute valeur erronée de argLine (ex: "(argLine)")
           mvn -q -B \
             -pl navigation,web-api -am \
+            -DargLine="" \
             org.pitest:pitest-maven:1.20.3:mutationCoverage \
             -DfailWhenNoMutations=false
 
@@ -92,3 +94,9 @@ jobs:
         with:
           name: score
           path: score.txt
+
+
+
+
+
+
