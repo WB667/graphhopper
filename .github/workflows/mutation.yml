@@ -38,10 +38,19 @@ jobs:
             -DfailWhenNoMutations=false
 
           # ---- AGRÉGATION MINIMALE navigation + web-api ----
-          p() { [[ -f "$1" ]] || { echo "0 0"; return; }
-            awk 'match($0,/Detected[^0-9]*([0-9]+)/,a){d=a[1]}
-                 match($0,/Generated[^0-9]*([0-9]+)/,b){g=b[1]}
-                 END{if(d=="")d=0; if(g=="")g=0; print d, g}' "$1"; }
+          # Parse le format actuel de PIT ("Generated N mutations", "Killed M")
+          p() {
+            [[ -f "$1" ]] || { echo "0 0"; return; }
+            awk '
+              match($0,/Generated[[:space:]]+([0-9]+)[[:space:]]+mutations/,g){gen=g[1]}
+              match($0,/Killed[[:space:]]+([0-9]+)/,k){det=k[1]}
+              END{
+                if(det=="") det=0;
+                if(gen=="") gen=0;
+                print det, gen
+              }
+            ' "$1"
+          }
 
           N=$(find navigation/target/pit-reports -name index.html 2>/dev/null | sort | tail -1)
           A=$(find web-api/target/pit-reports   -name index.html 2>/dev/null | sort | tail -1)
