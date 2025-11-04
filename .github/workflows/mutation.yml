@@ -31,8 +31,8 @@ jobs:
           # Neutralisation universelle : si un composant tente d'ouvrir "{argLine}", le fichier existe.
           : > "{argLine}"
 
-          # Lancement PIT via le plugin Maven (on ne touche pas argLine)
-          # IMPORTANT: on force la génération CSV pour un parsing fiable.
+          # Lancement PIT via le plugin Maven 
+          # sortie CSV pour un parsing fiable
           mvn -q -B \
             -pl navigation,web-api -am \
             org.pitest:pitest-maven:1.20.3:mutationCoverage \
@@ -40,15 +40,16 @@ jobs:
             -DoutputFormats=HTML,CSV
 
           # ---- AGRÉGATION ROBUSTE navigation + web-api ----
-          # 1) On privilégie mutations.csv (fiable).
-          # 2) Fallback HTML si pas de CSV.
-          # Les fonctions retournent: "<killed> <total>"
-
+          # 1 CSV prioritaire : total = lignes-1 ; killed = lignes contenant ",KILLED,"
+          # HTML si pas de CSV
           count_from_csv() {
             local csv="$1"
             [[ -f "$csv" ]] || { echo "0 0"; return; }
-            # colonnes PIT CSV: la 6e est le status (KILLED, SURVIVED, NO_COVERAGE, etc.)
-            awk -F',' 'NR>1 {tot++; if($6=="KILLED") kill++} END{print kill+0, tot+0}' "$csv"
+            local total killed
+            total=$(($(wc -l < "$csv")-1))
+            (( total < 0 )) && total=0
+            killed=$(grep -c ',KILLED,' "$csv" || true)
+            echo "${killed:-0} ${total:-0}"
           }
 
           count_from_html() {
@@ -100,9 +101,8 @@ jobs:
         continue-on-error: true
         with:
           name: score
-          # IMPORTANT : nom du fichier workflow, pas le chemin complet
-          workflow: mutation.yml
-          # Recherche l'artefact sur la même branche
+          # Utiliser le NOM DU WORKFLOW tel qu'affiché dans l'onglet Actions
+          workflow: "Mutation Testing"
           branch: ${{ github.ref_name }}
           search_artifacts: true
           if_no_artifact_found: ignore
