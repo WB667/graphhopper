@@ -24,16 +24,16 @@ jobs:
       - name: Run PIT (navigation + web-api)
         shell: bash
         env:
-          MAVEN_OPTS: "-Xmx2G"
+          MAVEN_OPTS: "-Xmx2G -DargLine="   # neutralisation supplémentaire
         run: |
           set -e
 
-          # Fix clé : on neutralise toute valeur erronée de argLine (ex: "(argLine)")
-          mvn -q -B \
-            -pl navigation,web-api -am \
-            -DargLine="" \
-            org.pitest:pitest-maven:1.20.3:mutationCoverage \
-            -DfailWhenNoMutations=false
+          # Neutralisation forte de toute injection {argLine}/(argLine) sans modifier les POM
+          mkdir -p .mvn
+          printf -- "-DargLine=\n" > .mvn/maven.config
+
+          # Commande Maven sur une seule ligne (évite les surprises d’échappement/continuation)
+          mvn -q -B -pl navigation,web-api -am -DargLine= org.pitest:pitest-maven:1.20.3:mutationCoverage -DfailWhenNoMutations=false
 
           # ---- AGRÉGATION MINIMALE navigation + web-api ----
           p() { [[ -f "$1" ]] || { echo "0 0"; return; }
@@ -57,7 +57,6 @@ jobs:
           fi
 
           [[ $GEN -eq 0 ]] && GEN=1
-
           SCORE=$(awk -v d="$DET" -v g="$GEN" 'BEGIN{printf "%.2f",(d*100.0)/g}')
           echo "Detected=$DET  Generated=$GEN  Score=${SCORE}%"
           echo "$SCORE" > score.txt
@@ -88,15 +87,9 @@ jobs:
             echo "Aucun score précédent (première exécution)."
           fi
 
-      # Étape 5 : Sauvegarde du score
+      # Étape 5 : Sauvegarde du score courant
       - name: Save current score
         uses: actions/upload-artifact@v4
         with:
           name: score
           path: score.txt
-
-
-
-
-
-
