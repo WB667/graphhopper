@@ -1,12 +1,10 @@
 name: Mutation Testing
+
 on: [push]
 
 jobs:
   pitest:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      actions: read
 
     steps:
       - uses: actions/checkout@v4
@@ -18,46 +16,38 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      # build préalable (pas de tests) pour avoir les SNAPSHOTs
-      - name: Pre-build reactor (install SNAPSHOTs)
-        run: mvn -q -B -DskipTests -DskipITs -pl navigation,web-api -am install
+      # Build sans tests, juste pour avoir les classes et dépendances
+      - name: Pre-build reactor
+        run: |
+          mvn -q -B -DskipTests -DskipITs -pl navigation,web-api -am install
 
-      # === PIT sur navigation + web-api ===
+      # Lancer PIT (laisser le pom piloter l'argLine/jacoco/surefire)
       - name: Run PIT (navigation + web-api)
         shell: bash
         run: |
           set -e
-
-          # Neutralise toutes les variantes d'argLine SANS MAVEN_OPTS
-          mvn -q -B \
-            -DskipTests=false \
-            -DargLine=" " -Dsurefire.argLine=" " -Dfailsafe.argLine=" " \
-            -pl navigation,web-api -am \
+          mvn -q -B -pl navigation,web-api -am \
             org.pitest:pitest-maven:1.20.3:mutationCoverage \
             -DfailWhenNoMutations=false
 
-          # --- récupère l'index du rapport PIT du module navigation
-          IDX_NAV="$(find navigation/target/pit-reports -type f -name index.html -print -quit 2>/dev/null || true)"
-          if [[ -z "$IDX_NAV" ]]; then
+          # Récupère le dernier rapport du module "navigation"
+          IDX_NAV="$(ls -1dt navigation/target/pit-reports/*/ 2>/dev/null | head -1)/index.html"
+          if [[ ! -f "$IDX_NAV" ]]; then
             echo "Aucun rapport PIT trouvé pour 'navigation'"
             echo "0" > score.txt
             exit 0
           fi
 
-          # --- extrait Detected / Generated et calcule le score
-          read DET GEN < <(awk '
-            match($0,/Detected[^0-9]*([0-9]+)/,a){d=a[1]}
-            match($0,/Generated[^0-9]*([0-9]+)/,b){g=b[1]}
-            END{ if(d=="") d=0; if(g=="") g=1; print d, g }
-          ' "$IDX_NAV")
+          # Extrait Detected / Generated et calcule le score
+          DET=$(grep -Eo "Detected[^0-9]*([0-9]+)"   "$IDX_NAV" | grep -Eo '[0-9]+' | head -1 || echo 0)
+          GEN=$(grep -Eo "Generated[^0-9]*([0-9]+)"  "$IDX_NAV" | grep -Eo '[0-9]+' | head -1 || echo 1)
+          awk -v d="$DET" -v g="$GEN" 'BEGIN{ if(g==0) g=1; printf "%.2f\n",(d*100.0)/g }' > score.txt
+          echo "Detected=$DET  Generated=$GEN  Score=$(cat score.txt)%"
 
-          SCORE=$(awk -v d="$DET" -v g="$GEN" 'BEGIN{printf "%.2f",(d*100.0)/g}')
-          echo "Detected=$DET  Generated=$GEN  Score=${SCORE}%"
-          echo "$SCORE" > score.txt
-
-      # charge le score précédent (s'il existe) depuis ce même workflow
+      # Essaie de récupérer l'ancien score (si indisponible : on n'échoue pas)
       - name: Download previous score
         uses: dawidd6/action-download-artifact@v6
+        continue-on-error: true
         with:
           name: score
           workflow: .github/workflows/mutation.yml
@@ -65,7 +55,7 @@ jobs:
           search_artifacts: true
           if_no_artifact_found: ignore
 
-      # échoue si le score baisse
+      # Échoue si le score a baissé
       - name: Fail if score decreased
         shell: bash
         run: |
@@ -73,12 +63,14 @@ jobs:
             PREV=$(cat score/score.txt)
             CURR=$(cat score.txt)
             echo "Previous=${PREV}%  Current=${CURR}%"
-            awk -v p="$PREV" -v c="$CURR" 'BEGIN{ exit (c+0 < p+0) ? 1 : 0 }' \
-              || { echo "Mutation score decreased"; exit 1; }
+            awk -v p="$PREV" -v c="$CURR" 'BEGIN{ if (c+0 < p+0) exit 1 }' \
+              && echo "Score stable ou en hausse." \
+              || { echo "Score de mutation en baisse."; exit 1; }
           else
-            echo "No previous score (first run)."
+            echo "Aucun score précédent (première exécution)."
           fi
 
+      # Sauvegarde le score courant pour les prochains runs
       - name: Save current score
         uses: actions/upload-artifact@v4
         with:
