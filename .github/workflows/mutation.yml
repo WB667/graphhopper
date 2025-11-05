@@ -1,4 +1,5 @@
 name: Mutation Testing
+
 on: [push]
 
 permissions:
@@ -8,71 +9,58 @@ permissions:
 jobs:
   pitest:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Pre-build reactor
+      - name: Build (sans tests)
         run: mvn -q -B -DskipTests -DskipITs -pl navigation,web-api -am install
 
-      - name: Run PIT (navigation + web-api)
+      - name: Run PIT
         shell: bash
         env:
           MAVEN_OPTS: "-Xmx2G"
         run: |
           set -e
           : > "{argLine}"
+
           mvn -q -B \
             -pl navigation,web-api -am \
             org.pitest:pitest-maven:1.20.3:mutationCoverage \
             -DfailWhenNoMutations=false \
             -DoutputFormats=HTML,CSV
 
-          count_from_csv() {
+          # ---- Extraction du score ----
+          get_score() {
             local csv="$1"
-            [[ -f "$csv" ]] || { echo "0 0"; return; }
+            [[ -f "$csv" ]] || { echo "0"; return; }
             local total killed
-            total=$(($(wc -l < "$csv")-1)); (( total < 0 )) && total=0
+            total=$(($(wc -l < "$csv")-1))
             killed=$(grep -c ',KILLED,' "$csv" || true)
-            echo "${killed:-0} ${total:-0}"
+            [[ $total -eq 0 ]] && echo "0" || awk -v k="$killed" -v t="$total" 'BEGIN{printf "%.2f",(k*100.0)/t}'
           }
-          count_from_html() {
-            local html="$1"
-            [[ -f "$html" ]] || { echo "0 0"; return; }
-            awk 'match($0,/Generated[[:space:]]+([0-9]+)/,g){gen=g[1]}
-                 match($0,/Killed[[:space:]]+([0-9]+)/,k){det=k[1]}
-                 END{if(det=="")det=0;if(gen=="")gen=0;print det,gen}' "$html"
-          }
-          aggregate_module() {
-            local module="$1"
-            local CSV=$(find "$module/target/pit-reports" -name mutations.csv 2>/dev/null | sort | tail -1)
-            local HTML=$(find "$module/target/pit-reports" -name index.html    2>/dev/null | sort | tail -1)
-            if [[ -n "$CSV" ]]; then read d g < <(count_from_csv "$CSV")
-            elif [[ -n "$HTML" ]]; then read d g < <(count_from_html "$HTML")
-            else d=0; g=0; fi
-            echo "$d $g"
-          }
-          read ND NG < <(aggregate_module navigation)
-          read AD AG < <(aggregate_module web-api)
-          DET=$((ND+AD)); GEN=$((NG+AG))
-          [[ $DET -eq 0 && $GEN -eq 0 ]] && { echo 0 > score.txt; exit 0; }
-          [[ $GEN -eq 0 ]] && GEN=1
-          awk -v d="$DET" -v g="$GEN" 'BEGIN{printf "%.2f",(d*100.0)/g}' > score.txt
+
+          CSV=$(find navigation/target/pit-reports web-api/target/pit-reports -name mutations.csv | sort | tail -1)
+          SCORE=$(get_score "$CSV")
+          echo "$SCORE" > score.txt
+          echo "Score actuel : ${SCORE}%"
 
       - name: Download previous score
         uses: dawidd6/action-download-artifact@v6
         continue-on-error: true
         with:
           name: score
-          workflow: mutation.yml
+          workflow: "Mutation Testing"
           branch: ${{ github.ref_name }}
-          search_artifacts: true
           path: score
+          if_no_artifact_found: ignore
 
       - name: Fail if score decreased
         shell: bash
@@ -80,7 +68,12 @@ jobs:
           if [[ -f score/score.txt ]]; then
             PREV=$(cat score/score.txt)
             CURR=$(cat score.txt)
-            awk -v p="$PREV" -v c="$CURR" 'BEGIN{exit (c+0 < p+0)}' || exit 1
+            echo "Comparaison : Avant=${PREV}% → Après=${CURR}%"
+            awk -v p="$PREV" -v c="$CURR" 'BEGIN{ if (c+0 < p+0) exit 1 }' \
+              && echo " Score stable ou en hausse." \
+              || { echo " Score de mutation en baisse."; exit 1; }
+          else
+            echo "Aucun score précédent (première exécution)."
           fi
 
       - name: Save current score
