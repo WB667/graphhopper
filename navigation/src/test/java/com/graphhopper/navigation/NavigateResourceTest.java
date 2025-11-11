@@ -1,18 +1,60 @@
 package com.graphhopper.navigation;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.graphhopper.GHRequest;
+import com.graphhopper.GraphHopper;
 import com.graphhopper.GraphHopperConfig;
+import com.graphhopper.config.Profile;
+import com.graphhopper.util.GHUtility;
+import com.graphhopper.util.Translation;
 import com.graphhopper.util.TranslationMap;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.ws.rs.core.Response;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class NavigateResourceTest {
+    static GraphHopper gh;
+    static GraphHopperConfig ghConfig;
+    static TranslationMap translationMapMock;
+
+    /**
+     * Initilise un objet GraphHopper et un mock de `TranslationMap` pour utiliser dans les tests.
+     */
+    @BeforeAll
+    public static void initMocks() {
+        ghConfig = new GraphHopperConfig();
+        gh = new GraphHopper();
+        gh.setOSMFile("core/files/andorra.osm.pbf");
+        gh.setGraphHopperLocation("target/routing-graph-cache");
+        gh.setProfiles(new Profile("car").setCustomModel(GHUtility.loadCustomModelFromJar("car.json")));
+        gh.importOrLoad();
+
+        // Dummy TranslationMap
+        translationMapMock = mock(TranslationMap.class);
+        when(translationMapMock.getWithFallBack(Locale.CANADA_FRENCH)).thenReturn(new Translation() {
+            @Override
+            public String tr(String key, Object... params) { return "dummy translation"; }
+            @Override
+            public Map<String, String> asMap() { return Map.of(); }
+            @Override
+            public Locale getLocale() { return Locale.CANADA; }
+            @Override
+            public String getLanguage() { return "fr"; }
+        });
+    }
+
     @Test
     public void voiceInstructionsTest() {
         List<Double> bearings = NavigateResource.getBearing("");
@@ -186,7 +228,63 @@ public class NavigateResourceTest {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> res.doPost(req, null));
         assertTrue(ex.getMessage().contains(field), "Le message doit mentionner '" + field + "'");
     }
-     
+
+
+    /**
+     * doGet réponse acceptable
+     * BUT: Vérifier que `doGet()` retourne une réponse acceptable dans un cas valide.
+     * DONNÉES: On utilise les données géographiques de `andora.osm.pbf` et des bearings correspondants.
+     * ORACLE: La réponse ne doit pas être nulle et le code de réponse doit être `Ok`.
+     * COUVERTURE:
+     * MUTANTS: Détecte un mutant sur le code de réponse.
+     */
+    @Test
+    public void doGet_okResponse() {
+        // Dummy HTTP Request
+        HttpServletRequest reqMock = mock(HttpServletRequest.class);
+        when(reqMock.getRequestURI())           .thenReturn("/navigate/directions/v5/gh/driving/1.522438,42.504606;1.527209,42.504776");
+        when(reqMock.getRemoteAddr())           .thenReturn("localhost");
+        when(reqMock.getLocale())               .thenReturn(Locale.CANADA_FRENCH);
+        when(reqMock.getHeader("User-Agent")).thenReturn("Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:143.0) Gecko/20100101 Firefox/143.0");
+        when(reqMock.getQueryString())          .thenReturn("");
+
+        NavigateResource navRes = new NavigateResource(gh, translationMapMock, ghConfig);
+        Response response = navRes.doGet(reqMock, null, null, true, true, true, true,
+                "imperial", "simplified", "polyline6", "1.522438,42.504606;1.527209,42.504776", "fr_CA", "driving");
+
+        JsonNode responseJson = (JsonNode) response.getEntity();
+        assertNotNull(responseJson);
+        assertEquals("Ok", responseJson.get("code").asText());
+    }
+
+
+    /**
+     * doGet réponse d'erreur
+     * BUT: Vérifier que `doGet()` retourne une réponse d'erreur en cas de problème.
+     * DONNÉES: On utilise les données géographiques de `andora.osm.pbf` et des bearings hors limites.
+     * ORACLE: La réponse ne doit pas être nulle. Le code de réponse doit être `InvalidInput` et le message doit contenir la phrase `out of bounds`.
+     * COUVERTURE:
+     * MUTANTS: Détecte quelques mutants sur la réponse d'erreur.
+     */
+    @Test
+    public void doGet_errorResponse() {
+        // Dummy HTTP Request
+        HttpServletRequest reqMock = mock(HttpServletRequest.class);
+        when(reqMock.getRequestURI())           .thenReturn("/navigate/directions/v5/gh/driving/45.499524,-73.617041;45.502730,-73.618301");
+        when(reqMock.getRemoteAddr())           .thenReturn("localhost");
+        when(reqMock.getLocale())               .thenReturn(Locale.CANADA_FRENCH);
+        when(reqMock.getHeader("User-Agent")).thenReturn("Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:143.0) Gecko/20100101 Firefox/143.0");
+        when(reqMock.getQueryString())          .thenReturn("");
+
+        NavigateResource navRes = new NavigateResource(gh, translationMapMock, ghConfig);
+        Response response = navRes.doGet(reqMock, null, null, true, true, true, true,
+                "imperial", "simplified", "polyline6", "45.499524,-73.617041;45.502730,-73.618301", "fr_CA", "driving");
+
+        JsonNode responseJson = (JsonNode) response.getEntity();
+        assertNotNull(responseJson);
+        assertEquals("InvalidInput", responseJson.get("code").asText());
+        assertTrue(responseJson.get("message").asText().contains("out of bounds"));
+    }
 }
 
 
