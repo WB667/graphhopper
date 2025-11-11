@@ -128,7 +128,9 @@ public class NavigateResourceTest {
             res.doGet(null, null, null, true,  true,  false, true,
                       "metric", "simplified", "polyline6", "", "en", "driving")
         );
+       
     }
+
 
     /**
      * doPost_requiresTypeMapbox <p>
@@ -161,7 +163,9 @@ public class NavigateResourceTest {
 
         // Message caractéristique du garde final
         assertTrue(ex.getMessage().contains("type=mapbox"), "Le message doit mentionner 'type=mapbox'");
-    }
+    
+        }
+    
 
     /**
      * Paramètres Mapbox interdits <p>
@@ -182,6 +186,7 @@ public class NavigateResourceTest {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> res.doPost(req, null));
         assertTrue(ex.getMessage().contains(field), "Le message doit mentionner '" + field + "'");
     }
+     
 }
 
 
