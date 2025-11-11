@@ -36,9 +36,10 @@ public class NavigateResourceTest {
     public static void initMocks() {
         ghConfig = new GraphHopperConfig();
         gh = new GraphHopper();
-        gh.setOSMFile("core/files/andorra.osm.pbf");
+        gh.setOSMFile("../core/files/andorra.osm.pbf");
         gh.setGraphHopperLocation("target/routing-graph-cache");
         gh.setProfiles(new Profile("car").setCustomModel(GHUtility.loadCustomModelFromJar("car.json")));
+        gh.setEncodedValuesString("car_access, road_access, car_average_speed");
         gh.importOrLoad();
 
         // Dummy TranslationMap
@@ -231,11 +232,11 @@ public class NavigateResourceTest {
 
 
     /**
-     * doGet réponse acceptable
-     * BUT: Vérifier que `doGet()` retourne une réponse acceptable dans un cas valide.
-     * DONNÉES: On utilise les données géographiques de `andora.osm.pbf` et des bearings correspondants.
-     * ORACLE: La réponse ne doit pas être nulle et le code de réponse doit être `Ok`.
-     * COUVERTURE:
+     * doGet réponse acceptable <p>
+     * BUT: Vérifier que `doGet()` retourne une réponse acceptable dans un cas valide. <p>
+     * DONNÉES: On utilise les données géographiques de `andora.osm.pbf` et des bearings correspondants. <p>
+     * ORACLE: La réponse ne doit pas être nulle et le code de réponse doit être `Ok`. <p>
+     * COUVERTURE: Augmente la couverture de `doGet()` et de `calcRouteForGET`. <p>
      * MUTANTS: Détecte un mutant sur le code de réponse.
      */
     @Test
@@ -259,11 +260,11 @@ public class NavigateResourceTest {
 
 
     /**
-     * doGet réponse d'erreur
-     * BUT: Vérifier que `doGet()` retourne une réponse d'erreur en cas de problème.
-     * DONNÉES: On utilise les données géographiques de `andora.osm.pbf` et des bearings hors limites.
-     * ORACLE: La réponse ne doit pas être nulle. Le code de réponse doit être `InvalidInput` et le message doit contenir la phrase `out of bounds`.
-     * COUVERTURE:
+     * doGet réponse d'erreur <p>
+     * BUT: Vérifier que `doGet()` retourne une réponse d'erreur en cas de problème. <p>
+     * DONNÉES: On utilise les données géographiques de `andora.osm.pbf` et des bearings hors limites. <p>
+     * ORACLE: La réponse ne doit pas être nulle. Le code de réponse doit être `InvalidInput` et le message doit contenir la phrase `out of bounds`. <p>
+     * COUVERTURE: Augmente la couverture de `doGet()`, `calcRouteForGET()` et `getPointsFromRequest()`. <p>
      * MUTANTS: Détecte quelques mutants sur la réponse d'erreur.
      */
     @Test
