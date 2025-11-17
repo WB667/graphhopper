@@ -285,7 +285,5 @@ public class NavigateResourceTest {
         assertEquals("InvalidInput", responseJson.get("code").asText());
         assertTrue(responseJson.get("message").asText().contains("out of bounds"));
     }
+     */
 }
-
-
-
