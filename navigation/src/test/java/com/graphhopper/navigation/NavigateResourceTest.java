@@ -266,7 +266,6 @@ public class NavigateResourceTest {
      * ORACLE: La réponse ne doit pas être nulle. Le code de réponse doit être `InvalidInput` et le message doit contenir la phrase `out of bounds`. <p>
      * COUVERTURE: Augmente la couverture de `doGet()`, `calcRouteForGET()` et `getPointsFromRequest()`. <p>
      * MUTANTS: Détecte quelques mutants sur la réponse d'erreur.
-     */
     @Test
     public void doGet_errorResponse() {
         // Dummy HTTP Request
