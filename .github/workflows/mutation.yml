@@ -20,11 +20,11 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      # Étape 1 : build sans tests pour disposer des classes compilées
+      # Étape 1: build sans tests pour disposer des classes compilées
       - name: Pre-build class
         run: mvn -q -B -DskipTests -DskipITs -pl navigation,web-api -am install
 
-      # Étape 2 : Exécution de PIT pour(navigation + web-api)
+      # Étape 2: Exécution de PIT pour navigation + web-api
       - name: Run PIT (navigation + web-api)
         shell: bash
         run: |
@@ -90,7 +90,7 @@ jobs:
           echo "Detected=$DET  Generated=$GEN  Score=${SCORE}%"
           echo "$SCORE" > score.txt
 
-      # Étape 3 : Télécharge l'ancien score (si existant)
+      # Étape 3: Télécharge l'ancien score (si existant)
       - name: Download previous score
         uses: dawidd6/action-download-artifact@v6
         continue-on-error: true
@@ -102,7 +102,7 @@ jobs:
           if_no_artifact_found: ignore
           path: score                  
 
-      # Étape 4 : Compare les scores
+      # Étape 4: Compare les scores
       - name: Fail if score decreased
         shell: bash
         run: |
@@ -118,7 +118,7 @@ jobs:
             echo "Aucun score précédent (première exécution)."
           fi
 
-      # Étape 5 : Sauvegarde du score courant
+      # Étape 5: Sauvegarde du score courant
       - name: Save current score
         uses: actions/upload-artifact@v4
         with:
