@@ -25,9 +25,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class NavigateResourceTest {
-    static GraphHopper gh;
-    static GraphHopperConfig ghConfig;
-    static TranslationMap translationMapMock;
+    /** Objet GraphHopper réutilisable */
+    private static GraphHopper gh;
+    /** Configuration GraphHopper */
+    private static GraphHopperConfig ghConfig;
+    /** Mock de `TranslationMap` réutilisable */
+    private static TranslationMap translationMapMock;
+
 
     /**
      * Initilise un objet GraphHopper et un mock de `TranslationMap` pour utiliser dans les tests.
@@ -56,6 +60,27 @@ public class NavigateResourceTest {
         });
     }
 
+
+    /**
+     * Génère un mock de `HttpServletRequest` spécifiquement pour la fonction `doGet()`.
+     * @param bearings les coordonnées de la requête
+     */
+    private static HttpServletRequest getRequestMock(String bearings) {
+        HttpServletRequest reqMock = mock(HttpServletRequest.class);
+        // URL de la requête
+        when(reqMock.getRequestURI()).thenReturn("/navigate/directions/v5/gh/driving/" + bearings);
+        // Adresse du client
+        when(reqMock.getRemoteAddr()).thenReturn("localhost");
+        // Locale du client
+        when(reqMock.getLocale()).thenReturn(Locale.CANADA_FRENCH);
+        // User-agent du client
+        when(reqMock.getHeader("User-Agent")).thenReturn("Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:143.0) Gecko/20100101 Firefox/143.0");
+        // Query parameters
+        when(reqMock.getQueryString()).thenReturn("");
+        return reqMock;
+    }
+
+
     @Test
     public void voiceInstructionsTest() {
         List<Double> bearings = NavigateResource.getBearing("");
@@ -70,6 +95,7 @@ public class NavigateResourceTest {
         assertEquals(4, bearings.size());
         assertEquals(100, bearings.get(1), .1);
     }
+
 
     /**
      * getBearing_parsingTest <p>
@@ -113,6 +139,7 @@ public class NavigateResourceTest {
                 () -> NavigateResource.getBearing("abc,5"),
                 "Non numérique: doit lever IllegalArgumentException");
     }
+
 
     /**
      * doGet_guardsTest <p>
@@ -241,17 +268,12 @@ public class NavigateResourceTest {
      */
     @Test
     public void doGet_okResponse() {
-        // Dummy HTTP Request
-        HttpServletRequest reqMock = mock(HttpServletRequest.class);
-        when(reqMock.getRequestURI())           .thenReturn("/navigate/directions/v5/gh/driving/1.522438,42.504606;1.527209,42.504776");
-        when(reqMock.getRemoteAddr())           .thenReturn("localhost");
-        when(reqMock.getLocale())               .thenReturn(Locale.CANADA_FRENCH);
-        when(reqMock.getHeader("User-Agent")).thenReturn("Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:143.0) Gecko/20100101 Firefox/143.0");
-        when(reqMock.getQueryString())          .thenReturn("");
+        String bearings = "1.522438,42.504606;1.527209,42.504776";
+        HttpServletRequest reqMock = getRequestMock(bearings);
 
         NavigateResource navRes = new NavigateResource(gh, translationMapMock, ghConfig);
         Response response = navRes.doGet(reqMock, null, null, true, true, true, true,
-                "imperial", "simplified", "polyline6", "1.522438,42.504606;1.527209,42.504776", "fr_CA", "driving");
+                "imperial", "simplified", "polyline6", bearings, "fr_CA", "driving");
 
         JsonNode responseJson = (JsonNode) response.getEntity();
         assertNotNull(responseJson);
@@ -269,17 +291,12 @@ public class NavigateResourceTest {
      */
     @Test
     public void doGet_errorResponse() {
-        // Dummy HTTP Request
-        HttpServletRequest reqMock = mock(HttpServletRequest.class);
-        when(reqMock.getRequestURI())           .thenReturn("/navigate/directions/v5/gh/driving/45.499524,-73.617041;45.502730,-73.618301");
-        when(reqMock.getRemoteAddr())           .thenReturn("localhost");
-        when(reqMock.getLocale())               .thenReturn(Locale.CANADA_FRENCH);
-        when(reqMock.getHeader("User-Agent")).thenReturn("Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:143.0) Gecko/20100101 Firefox/143.0");
-        when(reqMock.getQueryString())          .thenReturn("");
+        String bearings = "45.499524,-73.617041;45.502730,-73.618301";
+        HttpServletRequest reqMock = getRequestMock(bearings);
 
         NavigateResource navRes = new NavigateResource(gh, translationMapMock, ghConfig);
         Response response = navRes.doGet(reqMock, null, null, true, true, true, true,
-                "imperial", "simplified", "polyline6", "45.499524,-73.617041;45.502730,-73.618301", "fr_CA", "driving");
+                "imperial", "simplified", "polyline6", bearings, "fr_CA", "driving");
 
         JsonNode responseJson = (JsonNode) response.getEntity();
         assertNotNull(responseJson);
